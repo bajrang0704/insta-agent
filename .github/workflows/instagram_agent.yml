@@ -22,17 +22,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create config.py
-        run: |
-          cat <<EOF > config.py ${{ secrets.CONFIG_PY }} EOF
+      - name: Write config.py
+        uses: "hugoalh/write-file-ghaction@v1.2.0"
+        with:
+          path: "config.py"
+          content: ${{ secrets.CONFIG_PY }}
 
-      - name: Create Google credentials file
-        run: |
-          cat <<EOF > credentials.json ${{ secrets.GOOGLE_CREDENTIALS_JSON }} EOF
+      - name: Write credentials.json
+        uses: "hugoalh/write-file-ghaction@v1.2.0"
+        with:
+          path: "credentials.json"
+          content: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
 
-      - name: Create Instagram credentials file
-        run: |
-          cat <<EOF > instagram_credentials.json ${{ secrets.INSTAGRAM_CREDENTIALS_JSON }} EOF
+      - name: Write instagram_credentials.json
+        uses: "hugoalh/write-file-ghaction@v1.2.0"
+        with:
+          path: "instagram_credentials.json"
+          content: ${{ secrets.INSTAGRAM_CREDENTIALS_JSON }}
 
       - name: Run script
         env:
