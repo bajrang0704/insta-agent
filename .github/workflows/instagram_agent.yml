@@ -1,1 +1,42 @@
+name: Run Instagram AI Agent
 
+on:
+  schedule:
+    - cron: '0 15 * * *'  # 9 PM IST = 15:00 UTC
+  workflow_dispatch:
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Create config.py
+        run: |
+          echo "${{ secrets.CONFIG_PY }}" > config.py
+
+      - name: Create Google credentials file
+        run: |
+          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > credentials.json
+
+      - name: Create Instagram credentials file
+        run: |
+          echo "${{ secrets.INSTAGRAM_CREDENTIALS_JSON }}" > instagram_credentials.json
+
+      - name: Run script
+        env:
+          GOOGLE_CREDENTIALS_PATH: credentials.json
+          INSTAGRAM_CREDENTIALS_PATH: instagram_credentials.json
+        run: |
+          python main.py
