@@ -24,15 +24,15 @@ jobs:
 
       - name: Create config.py
         run: |
-          cat<<EOF> config.py ${{ secrets.CONFIG_PY }} EOF
+          cat <<EOF > config.py ${{ secrets.CONFIG_PY }} EOF
 
       - name: Create Google credentials file
         run: |
-          cat<<EOF> credentials.json ${{ secrets.GOOGLE_CREDENTIALS_JSON }} EOF
+          cat <<EOF > credentials.json ${{ secrets.GOOGLE_CREDENTIALS_JSON }} EOF
 
       - name: Create Instagram credentials file
         run: |
-          cat<<EOF> instagram_credentials.json ${{ secrets.INSTAGRAM_CREDENTIALS_JSON }} EOF
+          cat <<EOF > instagram_credentials.json ${{ secrets.INSTAGRAM_CREDENTIALS_JSON }} EOF
 
       - name: Run script
         env:
