@@ -1,4 +1,4 @@
-name: Instagram AI Agent
+name: instagam-agent
 
 on:
   workflow_dispatch:
