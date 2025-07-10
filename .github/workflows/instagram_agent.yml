@@ -47,7 +47,7 @@ jobs:
 
       - name: Restore OAuth client secret from secret
         run: |
-          echo "$OAUTH_CLIENT_SECRET_JSON" > client_secret_260892241319-4m6pavuqufep653d9ucvmnt2e6gm95ad.apps.googleusercontent.com.json
+           echo '${{ secrets.OAUTH_CLIENT_SECRET_JSON }}' > client_secret_260892241319-4m6pavuqufep653d9ucvmnt2e6gm95ad.apps.googleusercontent.com.json
 
       - name: Run Instagram AI Agent
         run: python main.py
