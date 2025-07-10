@@ -15,32 +15,12 @@ import schedule
 import time
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
+from config import *
 from instagram_api import InstagramAPI
 import requests
 import io
 from video_creator import VideoCreator
 
-
-import os
-
-# Write credentials.json
-google_creds = os.environ.get("GOOGLE_CREDENTIALS_JSON")
-if google_creds:
-    with open("credentials.json", "w") as f:
-        f.write(google_creds)
-
-# Write instagram_credentials.json
-insta_creds = os.environ.get("INSTAGRAM_CREDENTIALS_JSON")
-if insta_creds:
-    with open("instagram_credentials.json", "w") as f:
-        f.write(insta_creds)
-
-# Write .env
-dotenv_content = os.environ.get("DOTENV_FILE")
-if dotenv_content:
-    with open(".env", "w") as f:
-        f.write(dotenv_content)
-        
 # Configure MoviePy to use a different text rendering method
 try:
     change_settings({"IMAGEMAGICK_BINARY": "magick"})
