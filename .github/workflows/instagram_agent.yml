@@ -1,4 +1,4 @@
-name: instagam-agent
+name: Instagram AI Agent
 
 on:
   workflow_dispatch:
@@ -29,26 +29,20 @@ jobs:
 
       - name: Install dependencies
         run: |
-          cd 'insagram ai agent'
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Restore credentials.json from secret
         run: |
-          mkdir -p 'insagram ai agent'
-          echo "$GOOGLE_CREDENTIALS_JSON" > 'insagram ai agent/credentials.json'
+          echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
 
       - name: Restore instagram_credentials.json from secret
         run: |
-          mkdir -p 'insagram ai agent'
-          echo "$INSTAGRAM_CREDENTIALS_JSON" > 'insagram ai agent/instagram_credentials.json'
+          echo "$INSTAGRAM_CREDENTIALS_JSON" > instagram_credentials.json
 
       - name: Restore .env from secret
         run: |
-          mkdir -p 'insagram ai agent'
-          echo "$DOTENV_FILE" > 'insagram ai agent/.env'
+          echo "$DOTENV_FILE" > .env
 
       - name: Run Instagram AI Agent
-        run: |
-          cd 'insagram ai agent'
-          python main.py
+        run: python main.py
