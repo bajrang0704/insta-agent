@@ -20,6 +20,9 @@ from instagram_api import InstagramAPI
 import requests
 import io
 from video_creator import VideoCreator
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+import pickle
 
 # Configure MoviePy to use a different text rendering method
 try:
@@ -37,6 +40,11 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+
+# --- GOOGLE SHEETS CONFIG ---
+SHEET_NAME = 'Instagram quotes'  # The name of your Google Sheet
+SHEET_WORKSHEET_INDEX = 0       # 0 for the first sheet
+MANAGE_QUOTES_IN_SHEET = False  # Set to False to skip quote deletion/marking (if no edit permissions)
 
 class InstagramAIAgent:
     def __init__(self):
@@ -158,6 +166,100 @@ class InstagramAIAgent:
             print(f"[Drive] Error uploading to Drive: {e}")
             logging.error(f"Error uploading to Drive: {e}")
             return None
+    
+    def get_drive_service_oauth(self):
+        """Authenticate and return a Google Drive service using OAuth2 (real user)."""
+        SCOPES = ['https://www.googleapis.com/auth/drive.file']
+        creds = None
+        if os.path.exists('token.pickle'):
+            with open('token.pickle', 'rb') as token:
+                creds = pickle.load(token)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    'client_secret_260892241319.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+            with open('token.pickle', 'wb') as token:
+                pickle.dump(creds, token)
+        return build('drive', 'v3', credentials=creds)
+
+    def get_or_create_instagram_folder_oauth(self):
+        """Get or create the 'Instagram AI Videos' folder in Google Drive."""
+        try:
+            service = self.get_drive_service_oauth()
+            # Search for existing folder
+            query = "name='Instagram AI Videos' and mimeType='application/vnd.google-apps.folder' and trashed=false"
+            results = service.files().list(q=query, fields="files(id, name)").execute()
+            files = results.get('files', [])
+            
+            if files:
+                folder_id = files[0]['id']
+                logging.info(f"Found existing folder: Instagram AI Videos (ID: {folder_id})")
+                return folder_id
+            
+            # Create new folder
+            folder_metadata = {
+                'name': 'Instagram AI Videos',
+                'mimeType': 'application/vnd.google-apps.folder'
+            }
+            folder = service.files().create(body=folder_metadata, fields='id').execute()
+            folder_id = folder.get('id')
+            logging.info(f"Created new folder: Instagram AI Videos (ID: {folder_id})")
+            return folder_id
+        except Exception as e:
+            logging.error(f"Error creating/finding Instagram folder: {e}")
+            return None
+
+    def upload_to_drive_oauth(self, file_path, filename):
+        """Upload video to Google Drive using OAuth2 (real user) in the Instagram AI Videos folder."""
+        try:
+            service = self.get_drive_service_oauth()
+            
+            # Get or create the Instagram AI Videos folder
+            folder_id = self.get_or_create_instagram_folder_oauth()
+            if not folder_id:
+                logging.error("Could not find or create Instagram AI Videos folder")
+                return None
+            
+            file_metadata = {
+                'name': filename,
+                'parents': [folder_id]  # Upload to the specific folder
+            }
+            media = MediaFileUpload(file_path, resumable=True)
+            file = service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+            
+            file_id = file.get('id')
+            logging.info(f"Uploaded to Google Drive (OAuth): {filename} (ID: {file_id}) in Instagram AI Videos folder")
+            print(f"[Drive-OAuth] Upload complete! File ID: {file_id}")
+            
+            # Make the file public for Instagram API access
+            self.make_drive_file_public(file_id)
+            
+            return file_id
+        except Exception as e:
+            print(f"[Drive-OAuth] Error uploading to Drive: {e}")
+            logging.error(f"Error uploading to Drive (OAuth): {e}")
+            return None
+
+    def make_drive_file_public(self, file_id):
+        """Make a Google Drive file publicly accessible."""
+        try:
+            service = self.get_drive_service_oauth()
+            permission = {
+                'type': 'anyone',
+                'role': 'reader'
+            }
+            service.permissions().create(
+                fileId=file_id,
+                body=permission
+            ).execute()
+            logging.info(f"Made file {file_id} public")
+            return True
+        except Exception as e:
+            logging.error(f"Error making file public: {e}")
+            return False
     
     def check_weekly_reset(self):
         """Check if we should reset to the first quote (weekly)."""
@@ -415,18 +517,14 @@ class InstagramAIAgent:
         # Upload to Google Drive if enabled
         drive_id = None
         public_url = None
-        if UPLOAD_TO_DRIVE and USE_GOOGLE_DRIVE:
-            drive_id = self.upload_to_drive(video_filename, video_filename)
+        if UPLOAD_TO_DRIVE:
+            drive_id = self.upload_to_drive_oauth(video_filename, video_filename)
             if drive_id:
                 logging.info(f"Video uploaded to Google Drive with ID: {drive_id}")
-                # Make file public and get the link
-                if self.instagram_api:
-                    self.instagram_api.set_drive_file_public(drive_id)
-                    public_url = f"https://drive.google.com/uc?id={drive_id}&export=download"
-                    print("Public video URL:", public_url)
-                else:
-                    logging.error("Instagram API is not initialized. Cannot set Drive file public.")
-                    public_url = None
+                # Make file public and get the link (optional, for OAuth you may need to set permissions)
+                # self.instagram_api.set_drive_file_public(drive_id)  # Only if needed and implemented for OAuth
+                public_url = f"https://drive.google.com/uc?id={drive_id}&export=download"
+                print("Public video URL:", public_url)
         
         # Use test1.py style Instagram posting with the generated public_url
         if public_url:
@@ -466,6 +564,18 @@ class InstagramAIAgent:
             }
             publish_resp = requests.post(publish_url, data=publish_payload)
             print('Publish response:', publish_resp.json())
+            # Delete the video from Google Drive after successful Instagram post
+            if publish_resp.json().get('id') and drive_id:
+                self.delete_drive_file(drive_id)
+            # Delete the used quote from Google Sheets after successful Instagram post
+            if publish_resp.json().get('id') and MANAGE_QUOTES_IN_SHEET:
+                # Get the current quote index before it gets incremented
+                current_quote_index = self.progress_data['quote_index'] - 1
+                if current_quote_index < 0:
+                    current_quote_index = len(quotes_df) - 1  # Wrap around to last quote
+                self.delete_quote_from_sheet(current_quote_index)
+            elif publish_resp.json().get('id'):
+                print("[Sheets] Quote management disabled - quotes will be reused")
         
         # Save progress
         self.save_progress()
@@ -540,6 +650,70 @@ class InstagramAIAgent:
         except Exception as e:
             logging.error(f"Error downloading file from Drive: {e}")
             return None
+
+    def delete_drive_file(self, file_id):
+        """Delete a file from Google Drive by its ID."""
+        if not self.drive_service:
+            logging.warning("Google Drive service not initialized. Cannot delete file.")
+            return
+        try:
+            self.drive_service.files().delete(fileId=file_id).execute()
+            logging.info(f"Deleted file from Google Drive: {file_id}")
+        except Exception as e:
+            if "insufficientFilePermissions" in str(e):
+                logging.warning(f"Cannot delete file {file_id} - file is public. This is normal behavior.")
+                print(f"[Drive] File {file_id} is public and cannot be deleted via API. This is expected.")
+            else:
+                logging.error(f"Error deleting file from Google Drive: {e}")
+
+    def mark_quote_as_used(self, quote_index):
+        """Mark a quote as used by adding a 'Used' column instead of deleting."""
+        try:
+            gc = gspread.service_account(filename=GOOGLE_CREDENTIALS_PATH)
+            worksheet = gc.open(SHEET_NAME).get_worksheet(SHEET_WORKSHEET_INDEX)
+            
+            # Get all records to check if 'Used' column exists
+            records = worksheet.get_all_records()
+            df = pd.DataFrame(records)
+            
+            # If 'Used' column doesn't exist, add it
+            if 'Used' not in df.columns:
+                # Add 'Used' column header
+                worksheet.update_cell(1, len(df.columns) + 1, 'Used')
+                logging.info("Added 'Used' column to Google Sheet")
+            
+            # Mark the quote as used (row index + 2 for 1-indexed + header)
+            row_to_update = quote_index + 2
+            col_to_update = len(df.columns) + 1  # Last column
+            worksheet.update_cell(row_to_update, col_to_update, 'Yes')
+            
+            logging.info(f"Marked quote at index {quote_index} (row {row_to_update}) as used")
+            print(f"[Sheets] Marked quote in row {row_to_update} as used")
+            return True
+        except Exception as e:
+            logging.error(f"Error marking quote as used: {e}")
+            print(f"[Sheets] Error marking quote as used: {e}")
+            return False
+
+    def delete_quote_from_sheet(self, quote_index):
+        """Delete the used quote from Google Sheets to prevent reuse."""
+        try:
+            gc = gspread.service_account(filename=GOOGLE_CREDENTIALS_PATH)
+            worksheet = gc.open(SHEET_NAME).get_worksheet(SHEET_WORKSHEET_INDEX)
+            
+            # Delete the row (add 2 because sheets are 1-indexed and we have a header row)
+            row_to_delete = quote_index + 2
+            worksheet.delete_rows(row_to_delete)
+            
+            logging.info(f"Deleted quote at index {quote_index} (row {row_to_delete}) from Google Sheets")
+            print(f"[Sheets] Deleted used quote from row {row_to_delete}")
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting quote from sheet: {e}")
+            print(f"[Sheets] Error deleting quote: {e}")
+            # Fallback: mark as used instead of deleting
+            print(f"[Sheets] Falling back to marking quote as used...")
+            return self.mark_quote_as_used(quote_index)
 
 def main():
     """Main execution function."""
