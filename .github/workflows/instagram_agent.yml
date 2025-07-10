@@ -1,13 +1,23 @@
-name: Run Instagram AI Agent
+name: Instagram AI Agent
 
 on:
-  schedule:
-    - cron: '0 15 * * *'  # 9 PM IST = 15:00 UTC
   workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
-  run-agent:
+  run-instagram-agent:
     runs-on: ubuntu-latest
+
+    env:
+      GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+      INSTAGRAM_CREDENTIALS_JSON: ${{ secrets.INSTAGRAM_CREDENTIALS_JSON }}
+      DOTENV_FILE: ${{ secrets.DOTENV_FILE }}
+      INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+      INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,21 +32,17 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Create config.py
+      - name: Restore credentials.json from secret
         run: |
-          printf "%s" "${{ secrets.CONFIG_PY }}" > config.py
+          echo "$GOOGLE_CREDENTIALS_JSON" > credentials.json
 
-      - name: Create Google credentials file
+      - name: Restore instagram_credentials.json from secret
         run: |
-          printf "%s" "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > credentials.json
+          echo "$INSTAGRAM_CREDENTIALS_JSON" > instagram_credentials.json
 
-      - name: Create Instagram credentials file
+      - name: Restore .env from secret
         run: |
-          printf "%s" "${{ secrets.INSTAGRAM_CREDENTIALS_JSON }}" > instagram_credentials.json
+          echo "$DOTENV_FILE" > .env
 
-      - name: Run script
-        env:
-          GOOGLE_CREDENTIALS_PATH: credentials.json
-          INSTAGRAM_CREDENTIALS_PATH: instagram_credentials.json
-        run: |
-          python main.py
+      - name: Run Instagram AI Agent
+        run: python main.py
