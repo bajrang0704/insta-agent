@@ -17,6 +17,7 @@ jobs:
       DOTENV_FILE: ${{ secrets.DOTENV_FILE }}
       INSTAGRAM_ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
       INSTAGRAM_USER_ID: ${{ secrets.INSTAGRAM_USER_ID }}
+      OAUTH_CLIENT_SECRET_JSON: ${{ secrets.OAUTH_CLIENT_SECRET_JSON }}
 
     steps:
       - name: Checkout code
@@ -43,6 +44,10 @@ jobs:
       - name: Restore .env from secret
         run: |
           echo "$DOTENV_FILE" > .env
+
+      - name: Restore OAuth client secret from secret
+        run: |
+          echo "$OAUTH_CLIENT_SECRET_JSON" > client_secret_260892241319-4m6pavuqufep653d9ucvmnt2e6gm95ad.apps.googleusercontent.com.json
 
       - name: Run Instagram AI Agent
         run: python main.py
