@@ -420,9 +420,13 @@ class InstagramAIAgent:
             if drive_id:
                 logging.info(f"Video uploaded to Google Drive with ID: {drive_id}")
                 # Make file public and get the link
-                self.instagram_api.set_drive_file_public(drive_id)
-                public_url = f"https://drive.google.com/uc?id={drive_id}&export=download"
-                print("Public video URL:", public_url)
+                if self.instagram_api:
+                    self.instagram_api.set_drive_file_public(drive_id)
+                    public_url = f"https://drive.google.com/uc?id={drive_id}&export=download"
+                    print("Public video URL:", public_url)
+                else:
+                    logging.error("Instagram API is not initialized. Cannot set Drive file public.")
+                    public_url = None
         
         # Use test1.py style Instagram posting with the generated public_url
         if public_url:
