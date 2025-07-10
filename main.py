@@ -179,7 +179,7 @@ class InstagramAIAgent:
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    'client_secret_260892241319.json', SCOPES)
+                    'client_secret_260892241319-4m6pavuqufep653d9ucvmnt2e6gm95ad.apps.googleusercontent.com.json', SCOPES)
                 creds = flow.run_local_server(port=0)
             with open('token.pickle', 'wb') as token:
                 pickle.dump(creds, token)
