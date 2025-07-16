@@ -26,6 +26,7 @@ USE_GOOGLE_DRIVE = True  # Store videos in Google Drive instead of local
 DRIVE_FOLDER_NAME = 'Instagram AI Videos'  # Folder name in Google Drive
 UPLOAD_TO_DRIVE = True  # Upload generated videos to Google Drive
 DRIVE_MUSIC_FOLDER_ID = "1JWU8VSgShjnuER9Yq9-A_7KqRA0bDPPQ"
+DRIVE_FOLDER_ID="0ALWlt6PDMm9zUk9PVA"
 
 # --- INSTAGRAM API CONFIGURATION ---
 # Meta Graph API credentials for Instagram posting
